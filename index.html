@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Reminder App</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        h1 {
+            color: #1a73e8;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #5f6368;
+            font-weight: 500;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            border-color: #1a73e8;
+            outline: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #1557b0;
+        }
+
+        #statusMessage {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .success {
+            background-color: #e6f4ea;
+            color: #137333;
+        }
+
+        .error {
+            background-color: #fce8e6;
+            color: #c5221f;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            input, textarea, select, button {
+                padding: 10px;
+            }
+        }
+    </style>
+    <script src="https://smtpjs.com/v3/smtp.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const channelSelector = document.getElementById('sendChannel');
+            const emailGroup = document.getElementById('emailGroup');
+            const whatsappGroup = document.getElementById('whatsappGroup');
+            
+            // Promjena kanala slanja
+            channelSelector.addEventListener('change', () => {
+                if (channelSelector.value === 'email') {
+                    emailGroup.style.display = 'block';
+                    whatsappGroup.style.display = 'none';
+                } else {
+                    emailGroup.style.display = 'none';
+                    whatsappGroup.style.display = 'block';
+                }
+            });
+
+            // Slanje formulara
+            document.getElementById('taskForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                // Podaci iz formulara
+                const formData = {
+                    title: document.getElementById('taskTitle').value,
+                    message: document.getElementById('taskMessage').value,
+                    channel: channelSelector.value,
+                    recipient: channelSelector.value === 'email' 
+                        ? document.getElementById('email').value 
+                        : document.getElementById('phone').value,
+                    scheduleTime: document.getElementById('scheduleTime').value
+                };
+
+                // Validacija
+                if (!validateInputs(formData)) return;
+
+                // Slanje poruke
+                try {
+                    if (formData.channel === 'whatsapp') {
+                        // WhatsApp slanje preko CallMeBot API-ja
+                        const params = new URLSearchParams({
+                            phone: formData.recipient,
+                            text: `${formData.title}\n\n${formData.message}`,
+                            apikey: '1554421'
+                        });
+                        await fetch(`https://api.callmebot.com/whatsapp.php?${params}`);
+                        handleResponse(true);
+                    } else {
+                        // Email slanje preko Gmail SMTP-a
+                        await Email.send({
+                            Host: "smtp.gmail.com",
+                            Username: "planedme@gmail.com",
+                            Password: "eqkm gain qqyz udqn",
+                            To: formData.recipient,
+                            From: "planedme@gmail.com",
+                            Subject: formData.title,
+                            Body: formData.message
+                        });
+                        handleResponse(true);
+                    }
+                } catch (error) {
+                    showMessage('Došlo je do greške u slanju: ' + error.message, false);
+                }
+            });
+
+            function validateInputs(data) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                const phoneRegex = /^\+[0-9]{10,15}$/;
+
+                if (data.channel === 'email' && !emailRegex.test(data.recipient)) {
+                    showMessage('Unesite valjanu e-mail adresu', false);
+                    return false;
+                }
+
+                if (data.channel === 'whatsapp' && !phoneRegex.test(data.recipient)) {
+                    showMessage('Unesite valjani WhatsApp broj u formatu +385...', false);
+                    return false;
+                }
+
+                return true;
+            }
+
+            function handleResponse(success) {
+                if (success) {
+                    showMessage('Podsjetnik uspješno postavljen!', true);
+                    document.getElementById('taskForm').reset();
+                } else {
+                    showMessage('Greška pri slanju podsjetnika', false);
+                }
+            }
+
+            function showMessage(text, isSuccess) {
+                const statusDiv = document.getElementById('statusMessage');
+                statusDiv.textContent = text;
+                statusDiv.className = isSuccess ? 'success' : 'error';
+                
+                setTimeout(() => {
+                    statusDiv.textContent = '';
+                    statusDiv.className = '';
+                }, 5000);
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Smart Reminder App</h1>
+        <form id="taskForm">
+            <div class="form-group">
+                <label for="taskTitle">Naslov zadatka:</label>
+                <input type="text" id="taskTitle" required>
+            </div>
+
+            <div class="form-group">
+                <label for="taskMessage">Poruka:</label>
+                <textarea id="taskMessage" required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="sendChannel">Kanal slanja:</label>
+                <select id="sendChannel" required>
+                    <option value="email">E-mail</option>
+                    <option value="whatsapp">WhatsApp</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="emailGroup">
+                <label for="email">E-mail adresa:</label>
+                <input type="email" id="email">
+            </div>
+
+            <div class="form-group" id="whatsappGroup" style="display: none;">
+                <label for="phone">WhatsApp broj (npr. +385123456789):</label>
+                <input type="tel" id="phone" pattern="\+[0-9]{10,15}">
+            </div>
+
+            <div class="form-group">
+                <label for="scheduleTime">Vrijeme slanja:</label>
+                <input type="datetime-local" id="scheduleTime" required>
+            </div>
+
+            <button type="submit">Postavi podsjetnik</button>
+        </form>
+
+        <div id="statusMessage"></div>
+    </div>
+</body>
+</html>
